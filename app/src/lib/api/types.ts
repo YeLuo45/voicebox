@@ -521,3 +521,27 @@ export interface MCPClientBindingUpsert {
 export interface MCPClientBindingListResponse {
   items: MCPClientBinding[];
 }
+
+/* ─── Mobile pairing (V0) ────────────────────────────────────────────── */
+
+export type HostCandidateKind = 'lan' | 'tailscale' | 'loopback';
+
+export interface HostCandidate {
+  address: string;       // host:port
+  label: string;         // human-friendly name
+  kind: HostCandidateKind;
+}
+
+export interface PairInitResponse {
+  token: string;
+  expires_at: string;
+  pairing_url: string;   // voicebox://pair?host=…&token=…
+}
+
+export interface PairedDeviceResponse {
+  id: string;
+  name: string;
+  revoked: boolean;
+  created_at: string;
+  last_seen_at: string | null;
+}

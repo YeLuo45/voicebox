@@ -50,6 +50,9 @@ import type {
   MCPClientBinding,
   MCPClientBindingListResponse,
   MCPClientBindingUpsert,
+  HostCandidate,
+  PairInitResponse,
+  PairedDeviceResponse,
 } from './types';
 
 function formatErrorDetail(detail: unknown, fallback: string): string {
@@ -919,6 +922,26 @@ class ApiClient {
     }
 
     return response.blob();
+  }
+
+  // Mobile pairing
+  async getPairHostCandidates(): Promise<HostCandidate[]> {
+    return this.request<HostCandidate[]>('/pair/host-candidates');
+  }
+
+  async initPairing(host: string): Promise<PairInitResponse> {
+    return this.request<PairInitResponse>(
+      `/pair/init?host=${encodeURIComponent(host)}`,
+      { method: 'POST' },
+    );
+  }
+
+  async listPairedDevices(): Promise<PairedDeviceResponse[]> {
+    return this.request<PairedDeviceResponse[]>('/devices');
+  }
+
+  async revokePairedDevice(deviceId: string): Promise<void> {
+    await this.request<void>(`/devices/${deviceId}`, { method: 'DELETE' });
   }
 }
 

@@ -279,3 +279,37 @@ class Capture(Base):
     llm_model = Column(String, nullable=True)
     refinement_flags = Column(Text, nullable=True)  # JSON blob
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class PairedDevice(Base):
+    """A mobile device paired with this Voicebox install (V0 pair flow).
+
+    Stores only the SHA-256 of the bearer token; the bearer plaintext is
+    returned to the device once at pairing time and never persisted
+    server-side. If the device loses its bearer the user must re-pair.
+    """
+
+    __tablename__ = "paired_devices"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String, nullable=False)
+    bearer_hash = Column(String, nullable=False, unique=True, index=True)
+    revoked = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_seen_at = Column(DateTime, nullable=True)
+
+
+class PairingToken(Base):
+    """One-time token used to complete a device pairing.
+
+    Minted by the desktop UI via /pair/init, redeemed by the mobile
+    device via /pair/complete in exchange for a long-lived bearer.
+    Single-use; expires after ~5 minutes.
+    """
+
+    __tablename__ = "pairing_tokens"
+
+    token = Column(String, primary_key=True)
+    expires_at = Column(DateTime, nullable=False)
+    used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)

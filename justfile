@@ -52,6 +52,10 @@ setup-python:
     if [ "$(uname -m)" = "arm64" ] && [ "$(uname)" = "Darwin" ]; then
         echo "Detected Apple Silicon — installing MLX dependencies..."
         {{ pip }} install -r {{ backend_dir }}/requirements-mlx.txt
+        # mlx-audio + mlx-lm are intentionally --no-deps (their transformers>=5
+        # pin conflicts with our pinned 4.x). The runtime API surface we use
+        # works fine on transformers 4.57.x. See requirements-mlx.txt notes.
+        {{ pip }} install --no-deps mlx-audio==0.4.1 mlx-lm
     fi
     {{ pip }} install git+https://github.com/QwenLM/Qwen3-TTS.git
     {{ pip }} install pyinstaller ruff pytest pytest-asyncio -q
@@ -100,6 +104,11 @@ setup-js:
 # ─── Development ──────────────────────────────────────────────────────
 
 # Start backend (if not already running) + frontend for development
+# Binds the backend to 0.0.0.0 so paired mobile devices can reach it over the
+# LAN/Tailscale. This exposes existing unauth routes (/generate, /transcribe,
+# /captures, /profiles) to anyone on the same network — fine for a trusted
+# home network, NOT fine on public Wi-Fi. Bearer-auth middleware on those
+# routes is on the roadmap; until then, treat dev as LAN-trusted.
 [unix]
 dev: _ensure-venv _ensure-sidecar
     #!/usr/bin/env bash
@@ -109,8 +118,8 @@ dev: _ensure-venv _ensure-sidecar
     if curl -sf http://127.0.0.1:17493/health > /dev/null 2>&1; then
         echo "Backend already running on http://localhost:17493"
     else
-        echo "Starting backend on http://localhost:17493 ..."
-        {{ venv_bin }}/uvicorn backend.main:app --reload --port 17493 &
+        echo "Starting backend on http://0.0.0.0:17493 (LAN-reachable) ..."
+        {{ venv_bin }}/uvicorn backend.main:app --reload --host 0.0.0.0 --port 17493 &
         backend_pid=$!
         sleep 2
     fi
@@ -124,21 +133,21 @@ dev: _ensure-venv _ensure-sidecar
 dev: _ensure-venv _ensure-sidecar
     $backendJob = $null; \
     try { $null = Invoke-WebRequest -Uri "http://127.0.0.1:17493/health" -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop; Write-Host "Backend already running on http://localhost:17493" } catch { \
-        Write-Host "Starting backend on http://localhost:17493 ..."; \
-        $backendJob = Start-Process -PassThru -NoNewWindow -FilePath "{{ python }}" -ArgumentList "-m","uvicorn","backend.main:app","--reload","--port","17493"; \
+        Write-Host "Starting backend on http://0.0.0.0:17493 (LAN-reachable) ..."; \
+        $backendJob = Start-Process -PassThru -NoNewWindow -FilePath "{{ python }}" -ArgumentList "-m","uvicorn","backend.main:app","--reload","--host","0.0.0.0","--port","17493"; \
         Start-Sleep -Seconds 2; \
     }; \
     Write-Host "Starting Tauri desktop app..."; \
     try { Set-Location "{{ tauri_dir }}"; bun run tauri dev } finally { if ($backendJob) { taskkill /PID $backendJob.Id /T /F 2>$null | Out-Null } }
 
-# Start backend only
+# Start backend only — bound to 0.0.0.0 for mobile pairing (see `dev` above)
 [unix]
 dev-backend: _ensure-venv
-    {{ venv_bin }}/uvicorn backend.main:app --reload --port 17493
+    {{ venv_bin }}/uvicorn backend.main:app --reload --host 0.0.0.0 --port 17493
 
 [windows]
 dev-backend: _ensure-venv
-    & "{{ python }}" -m uvicorn backend.main:app --reload --port 17493
+    & "{{ python }}" -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 17493
 
 # Start Tauri desktop app only (backend must be running separately)
 [unix]
@@ -179,6 +188,15 @@ dev-web: _ensure-venv
     }; \
     Write-Host "Starting web app..."; \
     try { Set-Location "{{ web_dir }}"; bun run dev } finally { if ($backendJob) { taskkill /PID $backendJob.Id /T /F 2>$null | Out-Null } }
+
+# Start Expo dev server for the mobile companion app (run `cd mobile && bun install` once first)
+[unix]
+dev-mobile:
+    cd mobile && bunx expo start
+
+[windows]
+dev-mobile:
+    Set-Location "mobile"; bunx expo start
 
 # Kill all dev processes
 [unix]

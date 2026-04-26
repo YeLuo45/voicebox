@@ -793,3 +793,61 @@ class AvailableEffectsResponse(BaseModel):
     """Response listing all available effect types."""
 
     effects: List[AvailableEffect]
+
+
+# --- Mobile pairing (V0) -----------------------------------------------------
+
+class HostCandidate(BaseModel):
+    """A reachable address the desktop can embed in the pair QR."""
+
+    address: str  # ``host:port``, e.g. "192.168.1.5:17493"
+    label: str   # human-friendly name shown in the desktop host picker
+    kind: str    # "lan" | "tailscale" | "loopback"
+
+
+class PairInitResponse(BaseModel):
+    """Response for POST /pair/init — desktop renders ``pairing_url`` as a QR."""
+
+    token: str
+    expires_at: datetime
+    pairing_url: str  # full voicebox://pair?host=…&token=… URL
+
+
+class PairCompleteRequest(BaseModel):
+    """Mobile-side request body for POST /pair/complete."""
+
+    token: str = Field(..., min_length=1, max_length=128)
+    device_name: str = Field(..., min_length=1, max_length=80)
+
+
+class PairCompleteResponse(BaseModel):
+    """One-time response after successful pairing.
+
+    ``bearer`` is returned in plaintext exactly once and is never persisted
+    server-side; the device must save it (e.g. iOS SecureStore) immediately.
+    """
+
+    device_id: str
+    bearer: str
+    device_name: str
+
+
+class PairedDeviceResponse(BaseModel):
+    """A row in the desktop's Settings → Mobile device list."""
+
+    id: str
+    name: str
+    revoked: bool
+    created_at: datetime
+    last_seen_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class MeResponse(BaseModel):
+    """Identity of the bearer-authenticated caller."""
+
+    device_id: str
+    device_name: str
+    last_seen_at: Optional[datetime] = None

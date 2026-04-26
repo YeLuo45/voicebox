@@ -13,6 +13,7 @@ interface SettingsTab {
     | '/settings/generation'
     | '/settings/captures'
     | '/settings/mcp'
+    | '/settings/mobile'
     | '/settings/gpu'
     | '/settings/logs'
     | '/settings/changelog'
@@ -25,6 +26,9 @@ const tabs: SettingsTab[] = [
   { labelKey: 'settings.tabs.generation', path: '/settings/generation' },
   { labelKey: 'settings.tabs.captures', path: '/settings/captures' },
   { labelKey: 'settings.tabs.mcp', path: '/settings/mcp' },
+  // Plain-string label for V0 — translation keys come when mobile graduates
+  // out of "experimental" status.
+  { label: 'Mobile', path: '/settings/mobile' },
   { labelKey: 'settings.tabs.gpu', path: '/settings/gpu', tauriOnly: true },
   { labelKey: 'settings.tabs.logs', path: '/settings/logs', tauriOnly: true },
   { labelKey: 'settings.tabs.changelog', path: '/settings/changelog' },
